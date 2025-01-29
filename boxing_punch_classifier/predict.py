@@ -1,33 +1,24 @@
-import numpy as np
-import pandas as pd
+import warnings
 from pathlib import Path
+import pandas as pd
+import numpy as np
 from tensorflow import keras
 from sklearn.preprocessing import StandardScaler
+
 from extract_features import extract_features
-from data_processing import (
-    butterworth_filter,
-    replace_anomalies_with_mean
-)
+from data_processing import butterworth_filter, replace_anomalies_with_mean
 
 
-def load_model(model_path: Path) -> keras.Model:
+def load_and_preprocess_data(file_path: str, cutoff_freq: float = 4.0, sampling_freq: float = 100.0) -> pd.DataFrame:
     """
-    Load the trained model from disk.
+    Load and preprocess the sensor data file.
     """
-    if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found at {model_path}")
-    return keras.models.load_model(str(model_path))
+    # Read the CSV file
+    df = pd.read_csv(file_path)
 
-
-def preprocess_data(df: pd.DataFrame, cutoff_freq: float, sampling_freq: float) -> pd.DataFrame:
-    """
-    Preprocess the input data using the same steps as training.
-    """
-    # Handle missing values
-    df['label'].fillna(method='ffill', inplace=True)
-
-    # Sort and reset index
-    df = df.sort_values(by='timestamp').reset_index(drop=True)
+    # Add temporary label and hand columns for compatibility with preprocessing
+    df['label'] = 'Unknown'
+    df['hand'] = 'right'  # default value, will be removed later
 
     # Apply Butterworth filter
     df = butterworth_filter(
@@ -44,93 +35,94 @@ def preprocess_data(df: pd.DataFrame, cutoff_freq: float, sampling_freq: float) 
     return df
 
 
-def prepare_features(df: pd.DataFrame, selected_features: list) -> pd.DataFrame:
+def predict_movements(data_path: Path, model_path: Path) -> list:
     """
-    Extract and prepare features for prediction.
+    Predict boxing movements from sensor data.
     """
-    # Extract features
-    features_df = extract_features(df)
+    # Selected features used in training
+    SELECTED_FEATURES = [
+        'x_acc_mean', 'y_acc_mean', 'z_acc_mean',
+        'x_gyr_mean', 'y_gyr_mean', 'z_gyr_mean',
+        'x_acc_std', 'y_acc_std', 'z_acc_std',
+        'x_gyr_std'
+    ]
 
-    # Select only the features used in training
-    if selected_features:
-        features_df = features_df[selected_features]
-
-    # Standardize features
-    scaler = StandardScaler()
-    standardized_features = scaler.fit_transform(features_df)
-
-    return pd.DataFrame(standardized_features, columns=features_df.columns)
-
-
-def predict_activity(model: keras.Model, features: pd.DataFrame) -> str:
-    """
-    Make a prediction using the loaded model.
-    """
-    # Define the label mapping (should match training)
+    # Movement label mapping
     LABEL_MAPPING = {
-        'hook right': 0,
-        'hook left': 1,
-        'uppercut left': 2,
-        'uppercut right': 3,
-        'jab left': 4,
-        'jab right': 5,
-        'NoActivity left': 6,
-        'NoActivity right': 7
+        0: 'hook right',
+        1: 'hook left',
+        2: 'uppercut left',
+        3: 'uppercut right',
+        4: 'jab left',
+        5: 'jab right',
+        6: 'NoActivity left',
+        7: 'NoActivity right'
     }
-    reverse_mapping = {v: k for k, v in LABEL_MAPPING.items()}
 
-    # Make prediction
-    prediction = model.predict(features)
-    predicted_class = np.argmax(prediction, axis=1)[0]
+    # Load and preprocess the data
+    df = load_and_preprocess_data(str(data_path))
 
-    # Convert to label
-    predicted_label = reverse_mapping[predicted_class]
-    confidence = np.max(prediction) * 100
+    try:
+        # Extract features
+        feature_df = extract_features(df)
 
-    return predicted_label, confidence
+        # Select only the features used in training
+        feature_df = feature_df[SELECTED_FEATURES]
+
+        # Load the model
+        model = keras.models.load_model(str(model_path))
+
+        # Standardize the features
+        scaler = StandardScaler()
+        features_scaled = scaler.fit_transform(feature_df)
+
+        # Make predictions
+        predictions = model.predict(features_scaled)
+        predicted_classes = np.argmax(predictions, axis=1)
+
+        # Convert predictions to labels
+        predicted_labels = [LABEL_MAPPING[pred] for pred in predicted_classes]
+
+        # Add confidence scores
+        confidence_scores = np.max(predictions, axis=1)
+
+        # Combine predictions with confidence scores
+        results = list(zip(predicted_labels, confidence_scores))
+
+        return results
+
+    except Exception as e:
+        print(f"Error during feature extraction or prediction: {e}")
+        raise
 
 
 def main():
     # Configuration
+    ROOT_DIR = Path(__file__).parent.parent / "data"
     MODEL_PATH = Path(__file__).resolve().parent.parent / "model" / "model.h5"
-    CUTOFF_FREQUENCY = 4.0
-    SAMPLING_FREQUENCY = 100.0
-
-    # Top 10 features used in training (should match the features used in training)
-    SELECTED_FEATURES = [
-        'mean_accX', 'mean_accY', 'mean_accZ',
-        'std_accX', 'std_accY', 'std_accZ',
-        'mean_gyrX', 'mean_gyrY', 'mean_gyrZ',
-        'std_gyrX'
-    ]
+    DATA_PATH = ROOT_DIR / "test_sample.csv"
 
     try:
-        # Load the model
-        model = load_model(MODEL_PATH)
-        print("Model loaded successfully")
+        # Make predictions
+        predictions = predict_movements(DATA_PATH, MODEL_PATH)
 
-        # Example: Load new data for prediction
-        # Replace this with your actual data loading logic
-        test_data_path = Path(__file__).parent.parent / "data" / "test_sample.csv"
-        if not test_data_path.exists():
-            raise FileNotFoundError(f"Test data file not found at {test_data_path}")
+        # Print results
+        print("\nPredicted Boxing Movements:")
+        print("---------------------------")
+        for i, (movement, confidence) in enumerate(predictions, 1):
+            print(f"Movement {i}:")
+            print(f"  Type: {movement}")
+            print(f"  Confidence: {confidence:.2%}\n")
 
-        # Load and preprocess the data
-        new_data = pd.read_csv(test_data_path)
-        processed_data = preprocess_data(new_data, CUTOFF_FREQUENCY, SAMPLING_FREQUENCY)
-
-        # Prepare features
-        features = prepare_features(processed_data, SELECTED_FEATURES)
-
-        # Make prediction
-        predicted_label, confidence = predict_activity(model, features)
-
-        print(f"\nPrediction Results:")
-        print(f"Predicted Activity: {predicted_label}")
-        print(f"Confidence: {confidence:.2f}%")
-
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("Please ensure all required files are in the correct location:")
+        print(f"Data path: {DATA_PATH}")
+        print(f"Model path: {MODEL_PATH}")
     except Exception as e:
-        print(f"Error during prediction: {str(e)}")
+        print(f"An error occurred: {e}")
+        print(
+            "Please check if your input data has all required columns: timestamp, seconds_elapsed, accZ, accY, accX, gyrZ, gyrY, gyrX")
 
 
 if __name__ == "__main__":

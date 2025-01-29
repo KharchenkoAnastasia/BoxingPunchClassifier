@@ -175,13 +175,13 @@ def main():
     selected_features = feature_importance_random_forest(X_train, Y_train, df_train)
     X_train = X_train[selected_features[:10]]
     X_test = X_test[selected_features[:10]]
-
+    print(X_train.columns)
     # Create and train model
     model = create_model(X_train.shape[1], len(LABEL_MAPPING))
     history = model.fit(
         X_train,
         Y_train,
-        epochs=15,
+        epochs=10,
         validation_split=0.2,
         batch_size=32
     )
