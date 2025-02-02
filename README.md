@@ -82,7 +82,8 @@ BoxingPunchClassifier/
 ├── data/                      # Data directory for sensor readings
 ├── model/                     # Directory for saved models
 │   └── model.h5              # Trained model file
-├── notebooks/                 # Jupyter notebooks for analysis
+├── notebooks/                # Jupyter notebooks for analysis
+├── Dockerfile                # Docker configuration
 ├── pyproject.toml            # Project build configuration
 ├── README.md                 # Project documentation
 └── requirements.txt          # Project dependencies
@@ -115,6 +116,7 @@ To train a new model:
 
 ```bash
 python boxing_punch_classifier/train.py
+
 ```
 
 The training script will:
@@ -125,11 +127,28 @@ The training script will:
 
 ### Making Predictions
 
-To classify new punch data:
+Running with Docker
+
+Prerequisites
+
+Docker installed on your system
+
+Your test data file (CSV format) in the data directory
+
+Building the Docker Image
+```bash
+# Build the Docker image
+docker build -t boxing-classifier .
+```
+
+Running Predictions
+
+Basic run (using default test file):
 
 ```bash
-python boxing_punch_classifier/predict.py
+docker run -it boxing-classifier
 ```
+
 
 ## Module Descriptions
 
