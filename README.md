@@ -5,7 +5,7 @@ The goal of this project is to classify types of punches in boxing. The classifi
 
 ---
 
-## Data Collection
+## 📂 Data Collection
 Data was collected using the **Sensor Logger** add-on. This tool can be utilized for both initial analysis and commercial purposes.
 
 ### Sensor Specifications
