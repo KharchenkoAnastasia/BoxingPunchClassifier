@@ -69,7 +69,7 @@ This project lays the foundation for:
 
 
 
-### **Project Structure**
+## 🗂️ **Project Structure**
 ```
 BoxingPunchClassifier/
 ├── boxing_punch_classifier/    # Main package directory
