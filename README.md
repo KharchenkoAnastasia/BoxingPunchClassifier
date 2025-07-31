@@ -1,6 +1,6 @@
 # Classification of Types of Punches in Boxing
 
-## Statement of the Problem
+## 📌 Statement of the Problem
 The goal of this project is to classify types of punches in boxing. The classification involves three types of punches (jab, uppercut, hook) for both the left and right hands.
 
 ---
