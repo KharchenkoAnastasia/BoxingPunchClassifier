@@ -1,11 +1,11 @@
 # Classification of Types of Punches in Boxing
 
-## Statement of the Problem
+## 📌 Statement of the Problem
 The goal of this project is to classify types of punches in boxing. The classification involves three types of punches (jab, uppercut, hook) for both the left and right hands.
 
 ---
 
-## Data Collection
+## 📂 Data Collection
 Data was collected using the **Sensor Logger** add-on. This tool can be utilized for both initial analysis and commercial purposes.
 
 ### Sensor Specifications
@@ -69,7 +69,7 @@ This project lays the foundation for:
 
 
 
-### **Project Structure**
+## 🗂️ **Project Structure**
 ```
 BoxingPunchClassifier/
 ├── boxing_punch_classifier/    # Main package directory
